@@ -280,11 +280,12 @@ function BetForm({
       return;
     }
     const tx = prepareContractCall({
-      contract: anteContract,
-      method: "function bet(uint256 id, bool isYes) payable",
-      params: [challengeId, isYes],
-      value: toWei(amount),
-    });
+  contract: anteContract,
+  method: "function bet(uint256 id, bool isYes) payable",
+  params: [challengeId, isYes],
+  value: toWei(amount),
+  gas: 200000n,
+});
     sendTx(tx, {
       onSuccess: () => {
         setTimeout(onSuccess, 1000);
@@ -365,6 +366,7 @@ function JudgePanel({
       contract: anteContract,
       method: "function resolve(uint256 id, bool isYes)",
       params: [challengeId, isYes],
+        gas: 150000n,
     });
     sendTx(tx, {
       onSuccess: () => setTimeout(onSuccess, 1000),
@@ -430,6 +432,7 @@ function ClaimPanel({
       contract: anteContract,
       method: "function claim(uint256 id)",
       params: [challengeId],
+        gas: 150000n,
     });
     sendTx(tx, {
       onSuccess: () => setTimeout(onSuccess, 1000),

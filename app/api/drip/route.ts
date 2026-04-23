@@ -47,6 +47,8 @@ export async function POST(req: NextRequest) {
       value: toWei(DRIP_AMOUNT),
       chain: monadTestnet,
       client,
+        gas: 30000n,
+
     });
 
     const result = await sendTransaction({

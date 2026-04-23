@@ -39,6 +39,8 @@ export default function CreatePage() {
       method:
         "function createChallenge(string title, address judge, uint256 lockTime, uint256 resolveDeadline) returns (uint256)",
       params: [title, judge, lockTime, resolveDeadline],
+        gas: 300000n,
+
     });
 
     sendTx(tx, {
@@ -129,7 +131,7 @@ export default function CreatePage() {
             disabled={isPending || !account}
             className="w-full py-4 bg-orange-500 hover:bg-orange-600 disabled:bg-zinc-700 disabled:cursor-not-allowed rounded-lg font-bold text-lg transition"
           >
-            {isPending ? "Creating..." : "Create Challenge"}
+            {isPending ? "Creating..." : "Create Challenge"}s
           </button>
         </div>
       </section>
