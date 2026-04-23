@@ -13,6 +13,7 @@ export const monadTestnet = defineChain({
     { name: "MonadScan", url: "https://testnet.monadscan.com" },
   ],
 });
+
 export const ANTE_ADDRESS = "0xc7BCf996c09A4A924aB973C146BD83617745feF2";
 
 export const anteContract = getContract({

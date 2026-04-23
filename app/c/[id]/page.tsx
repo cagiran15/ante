@@ -16,7 +16,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { useDrip } from "@/lib/useDrip";
 
 const wallets = [
-  inAppWallet({ auth: { options: ["email", "google", "x"] } }),
+  inAppWallet({ auth: { options: ["guest", "email", "google", "x"] } }),
   createWallet("io.metamask"),
 ];
 
@@ -45,7 +45,7 @@ useDrip(account?.address);
     method:
       "function getChallenge(uint256 id) view returns ((string title, address creator, address judge, uint256 lockTime, uint256 resolveDeadline, uint256 yesPool, uint256 noPool, uint8 outcome, bool resolved))",
     params: [challengeId],
-    queryOptions: { refetchInterval: 3000 },
+    queryOptions: { refetchInterval: 5000 },
   });
 
   const { data: myBets } = useReadContract({
@@ -56,7 +56,7 @@ useDrip(account?.address);
       challengeId,
       account?.address ?? "0x0000000000000000000000000000000000000000",
     ],
-    queryOptions: { refetchInterval: 3000 },
+    queryOptions: { refetchInterval: 5000 },
   });
 
   const { data: events } = useContractEvents({

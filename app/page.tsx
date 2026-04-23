@@ -8,7 +8,7 @@ import Link from "next/link";
 const wallets = [
   inAppWallet({
     auth: {
-      options: ["email", "google", "x"],
+      options: ["guest","email", "google", "x"],
     },
   }),
   createWallet("io.metamask"),
