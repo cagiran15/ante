@@ -7,7 +7,7 @@ export const client = createThirdwebClient({
 export const monadTestnet = defineChain({
   id: 10143,
   name: "Monad Testnet",
-  rpc: "https://testnet-rpc.monad.xyz",
+rpc: "https://monad-testnet.drpc.org",
   nativeCurrency: { name: "MON", symbol: "MON", decimals: 18 },
   blockExplorers: [
     { name: "MonadScan", url: "https://testnet.monadscan.com" },
