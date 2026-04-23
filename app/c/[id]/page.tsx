@@ -13,6 +13,7 @@ import { inAppWallet, createWallet } from "thirdweb/wallets";
 import { anteContract, client, monadTestnet } from "@/lib/contract";
 import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
+import { useDrip } from "@/lib/useDrip";
 
 const wallets = [
   inAppWallet({ auth: { options: ["email", "google", "x"] } }),
@@ -32,7 +33,7 @@ export default function ChallengePage({
   const { id } = use(params);
   const challengeId = BigInt(id);
   const account = useActiveAccount();
-
+useDrip(account?.address);
   const [now, setNow] = useState(Math.floor(Date.now() / 1000));
   useEffect(() => {
     const t = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000);
