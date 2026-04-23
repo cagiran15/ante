@@ -15,7 +15,7 @@ const monadTestnet = defineChain({
 
 // Haksız sömürüyü önlemek için basit bellek içi takip (sunucu yeniden başlarsa sıfırlanır)
 const recentlyDripped = new Map<string, number>();
-const DRIP_AMOUNT = "2"; // 2 MON
+const DRIP_AMOUNT = "0.2"; // 2 MON
 const COOLDOWN_MS = 60 * 60 * 1000; // 1 saat
 
 export async function POST(req: NextRequest) {
