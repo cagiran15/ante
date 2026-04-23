@@ -1,21 +1,28 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState, useEffect, use } from "react";
 import {
   useReadContract,
   useSendTransaction,
   useActiveAccount,
+  useContractEvents,
   ConnectButton,
 } from "thirdweb/react";
-import { prepareContractCall, toWei } from "thirdweb";
+import { prepareContractCall, prepareEvent, toWei } from "thirdweb";
 import { inAppWallet, createWallet } from "thirdweb/wallets";
 import { anteContract, client, monadTestnet } from "@/lib/contract";
 import Link from "next/link";
+import { QRCodeSVG } from "qrcode.react";
 
 const wallets = [
   inAppWallet({ auth: { options: ["email", "google", "x"] } }),
   createWallet("io.metamask"),
 ];
+
+const betEvent = prepareEvent({
+  signature:
+    "event BetPlaced(uint256 indexed id, address indexed bettor, bool isYes, uint256 amount)",
+});
 
 export default function ChallengePage({
   params,
@@ -25,6 +32,12 @@ export default function ChallengePage({
   const { id } = use(params);
   const challengeId = BigInt(id);
   const account = useActiveAccount();
+
+  const [now, setNow] = useState(Math.floor(Date.now() / 1000));
+  useEffect(() => {
+    const t = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   const { data, isLoading, refetch } = useReadContract({
     contract: anteContract,
@@ -38,9 +51,22 @@ export default function ChallengePage({
     contract: anteContract,
     method:
       "function getBets(uint256 id, address user) view returns (uint256 yesAmount, uint256 noAmount)",
-    params: [challengeId, account?.address ?? "0x0000000000000000000000000000000000000000"],
+    params: [
+      challengeId,
+      account?.address ?? "0x0000000000000000000000000000000000000000",
+    ],
     queryOptions: { refetchInterval: 3000 },
   });
+
+  const { data: events } = useContractEvents({
+    contract: anteContract,
+    events: [betEvent],
+  });
+
+  const recentBets = (events ?? [])
+    .filter((e: any) => e.args?.id === challengeId)
+    .slice(-8)
+    .reverse();
 
   if (isLoading || !data) {
     return (
@@ -50,24 +76,18 @@ export default function ChallengePage({
     );
   }
 
-  const {
-    title,
-    creator,
-    judge,
-    lockTime,
-    yesPool,
-    noPool,
-    outcome,
-    resolved,
-  } = data;
+  const { title, creator, judge, lockTime, yesPool, noPool, outcome, resolved } =
+    data;
 
   const total = yesPool + noPool;
   const yesPct = total > 0n ? Number((yesPool * 100n) / total) : 50;
   const noPct = 100 - yesPct;
-  const now = Math.floor(Date.now() / 1000);
   const isLocked = Number(lockTime) <= now;
-  const isJudge = account?.address.toLowerCase() === judge.toLowerCase();
+  const isJudge =
+    account?.address.toLowerCase() === judge.toLowerCase();
   const secondsLeft = Math.max(0, Number(lockTime) - now);
+  const pageUrl =
+    typeof window !== "undefined" ? window.location.href : "";
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-zinc-900 via-black to-zinc-900 text-white">
@@ -75,7 +95,9 @@ export default function ChallengePage({
         <Link href="/">
           <div>
             <h1 className="text-3xl font-bold">Ante</h1>
-            <p className="text-xs text-zinc-500">put your money where your mouth is</p>
+            <p className="text-xs text-zinc-500">
+              put your money where your mouth is
+            </p>
           </div>
         </Link>
         <ConnectButton
@@ -87,56 +109,143 @@ export default function ChallengePage({
       </header>
 
       <section className="max-w-2xl mx-auto px-6 py-10">
+        {/* Top bar */}
         <div className="mb-4 flex items-center gap-2 text-xs">
-          <Link href="/" className="text-zinc-500 hover:text-white">← Back</Link>
+          <Link href="/" className="text-zinc-500 hover:text-white">
+            ← Back
+          </Link>
           <span className="text-zinc-700">·</span>
           <span className="text-zinc-500">Challenge #{id}</span>
           {resolved ? (
             <span className="ml-auto px-2 py-1 bg-zinc-800 rounded">
-              {outcome === 1 ? "✅ YES WON" : outcome === 2 ? "❌ NO WON" : "CANCELLED"}
+              {outcome === 1
+                ? "✅ YES WON"
+                : outcome === 2
+                ? "❌ NO WON"
+                : "CANCELLED"}
             </span>
           ) : isLocked ? (
-            <span className="ml-auto px-2 py-1 bg-yellow-900/50 text-yellow-400 rounded">⏳ AWAITING JUDGE</span>
+            <span className="ml-auto px-2 py-1 bg-yellow-900/50 text-yellow-400 rounded">
+              ⏳ AWAITING JUDGE
+            </span>
           ) : (
-            <span className="ml-auto px-2 py-1 bg-green-900/50 text-green-400 rounded">🟢 LIVE</span>
+            <span className="ml-auto px-2 py-1 bg-green-900/50 text-green-400 rounded">
+              🟢 LIVE
+            </span>
           )}
         </div>
 
+        {/* Title */}
         <h2 className="text-3xl font-bold mb-6">{title}</h2>
 
+        {/* Pool + odds */}
         <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-5 mb-6">
           <div className="flex justify-between items-baseline mb-2">
             <span className="text-sm text-zinc-400">Total Pool</span>
-            <span className="text-2xl font-bold">{formatEther(total)} MON</span>
+            <span className="text-2xl font-bold">
+              {formatEther(total)} MON
+            </span>
           </div>
           <div className="h-3 bg-zinc-800 rounded-full overflow-hidden flex mb-2">
-            <div className="bg-green-500 transition-all duration-500" style={{ width: `${yesPct}%` }} />
-            <div className="bg-red-500 transition-all duration-500" style={{ width: `${noPct}%` }} />
+            <div
+              className="bg-green-500 transition-all duration-500"
+              style={{ width: `${yesPct}%` }}
+            />
+            <div
+              className="bg-red-500 transition-all duration-500"
+              style={{ width: `${noPct}%` }}
+            />
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-green-400">YES {yesPct}% · {formatEther(yesPool)} MON</span>
-            <span className="text-red-400">NO {noPct}% · {formatEther(noPool)} MON</span>
+            <span className="text-green-400">
+              YES {yesPct}% · {formatEther(yesPool)} MON
+            </span>
+            <span className="text-red-400">
+              NO {noPct}% · {formatEther(noPool)} MON
+            </span>
           </div>
         </div>
 
-        {!isLocked && !resolved && (
-          <BetForm challengeId={challengeId} account={account} onSuccess={refetch} secondsLeft={secondsLeft} />
+        {/* QR code — only while challenge is open */}
+        {!resolved && !isLocked && (
+          <div className="bg-white rounded-xl p-6 mb-6 flex items-center gap-4">
+            <QRCodeSVG value={pageUrl} size={128} level="M" />
+            <div className="text-black">
+              <p className="font-bold text-lg mb-1">📱 Join the bet</p>
+              <p className="text-sm text-zinc-700">
+                Scan to place your bet from your phone.
+              </p>
+              <p className="text-xs text-zinc-500 mt-2">
+                Email login supported — no MetaMask needed.
+              </p>
+            </div>
+          </div>
         )}
 
+        {/* Bet form */}
+        {!isLocked && !resolved && (
+          <BetForm
+            challengeId={challengeId}
+            account={account}
+            onSuccess={refetch}
+            secondsLeft={secondsLeft}
+          />
+        )}
+
+        {/* Judge panel */}
         {isLocked && !resolved && isJudge && (
           <JudgePanel challengeId={challengeId} onSuccess={refetch} />
         )}
 
+        {/* Claim panel */}
         {resolved && account && (
-          <ClaimPanel challengeId={challengeId} myBets={myBets} outcome={outcome} onSuccess={refetch} />
+          <ClaimPanel
+            challengeId={challengeId}
+            myBets={myBets}
+            outcome={outcome}
+            onSuccess={refetch}
+          />
         )}
 
+        {/* Live bets feed */}
+        {recentBets.length > 0 && (
+          <div className="mt-6">
+            <h3 className="text-sm font-semibold text-zinc-400 mb-3">
+              Live bets
+            </h3>
+            <div className="space-y-2">
+              {recentBets.map((e: any, i: number) => (
+                <div
+                  key={`${e.transactionHash}-${i}`}
+                  className={`flex justify-between items-center px-4 py-2 rounded-lg border ${
+                    e.args.isYes
+                      ? "bg-green-900/20 border-green-800"
+                      : "bg-red-900/20 border-red-800"
+                  }`}
+                >
+                  <span className="text-sm font-mono">
+                    {shortAddr(e.args.bettor)}
+                  </span>
+                  <span className="text-sm">
+                    {formatEther(e.args.amount)} MON{" "}
+                    {e.args.isYes ? "✅" : "❌"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Meta info */}
         <div className="mt-8 text-xs text-zinc-600 space-y-1">
           <p>Creator: {shortAddr(creator)}</p>
-          <p>Judge: {shortAddr(judge)} {isJudge && "(you)"}</p>
+          <p>
+            Judge: {shortAddr(judge)} {isJudge && "(you)"}
+          </p>
           {myBets && (myBets[0] > 0n || myBets[1] > 0n) && (
             <p className="text-zinc-400">
-              Your stake — YES: {formatEther(myBets[0])} MON · NO: {formatEther(myBets[1])} MON
+              Your stake — YES: {formatEther(myBets[0])} MON · NO:{" "}
+              {formatEther(myBets[1])} MON
             </p>
           )}
         </div>
@@ -190,16 +299,24 @@ function BetForm({
     <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
       <div className="flex justify-between items-center mb-4">
         <h3 className="font-semibold">Place your bet</h3>
-        <span className="text-xs text-zinc-500">Closes in {mins}m {secs}s</span>
+        <span className="text-xs text-zinc-500">
+          Closes in {mins}m {secs}s
+        </span>
       </div>
       <div className="mb-4">
-        <label className="block text-sm text-zinc-400 mb-2">Amount (MON)</label>
+        <label className="block text-sm text-zinc-400 mb-2">
+          Amount (MON)
+        </label>
         <div className="flex gap-2 mb-2">
           {["0.1", "0.5", "1", "5"].map((v) => (
             <button
               key={v}
               onClick={() => setAmount(v)}
-              className={`px-3 py-2 text-sm rounded ${amount === v ? "bg-orange-500" : "bg-zinc-800 hover:bg-zinc-700"}`}
+              className={`px-3 py-2 text-sm rounded ${
+                amount === v
+                  ? "bg-orange-500"
+                  : "bg-zinc-800 hover:bg-zinc-700"
+              }`}
             >
               {v}
             </button>
@@ -295,7 +412,8 @@ function ClaimPanel({
 
   const wonYes = outcome === 1 && myBets && myBets[0] > 0n;
   const wonNo = outcome === 2 && myBets && myBets[1] > 0n;
-  const cancelled = outcome === 3 && myBets && (myBets[0] > 0n || myBets[1] > 0n);
+  const cancelled =
+    outcome === 3 && myBets && (myBets[0] > 0n || myBets[1] > 0n);
   const canClaim = wonYes || wonNo || cancelled;
 
   if (!canClaim) {
@@ -321,7 +439,9 @@ function ClaimPanel({
   return (
     <div className="bg-green-950/30 border border-green-800 rounded-xl p-5 text-center">
       <h3 className="text-xl font-bold mb-2">🏆 You won!</h3>
-      <p className="text-sm text-zinc-400 mb-4">Claim your share of the pool</p>
+      <p className="text-sm text-zinc-400 mb-4">
+        Claim your share of the pool
+      </p>
       <button
         onClick={claim}
         disabled={isPending}
